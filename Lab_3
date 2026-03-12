@@ -1,0 +1,121 @@
+#include <Wire.h>
+#include <RTClib.h>
+#include <LedControl.h>
+
+LedControl lc = LedControl(11, 13, 10, 1);
+RTC_DS3231 rtc; 
+
+const int buttonPin = 2;
+const int greenLED  = 3;
+const int redLED    = 5;
+
+enum GameState { STANDBY, SHOW_TARGET, RUNNING };
+GameState currentState = STANDBY;
+
+int currentCounter = 0;
+uint32_t lastMoveTime = 0;
+const int targetValue = 2; 
+
+const byte numbers[11][8] = {
+  {0x3C,0x42,0x42,0x42,0x42,0x42,0x42,0x3C}, // 0
+  {0x10,0x30,0x50,0x10,0x10,0x10,0x10,0x7C}, // 1
+  {0x3C,0x42,0x02,0x02,0x3C,0x40,0x40,0x7E}, // 2
+  {0x3C,0x42,0x02,0x3C,0x02,0x02,0x42,0x3C}, // 3
+  {0x08,0x18,0x28,0x48,0x7E,0x08,0x08,0x08}, // 4
+  {0x7E,0x40,0x40,0x7C,0x02,0x02,0x42,0x3C}, // 5
+  {0x3C,0x40,0x40,0x7C,0x42,0x42,0x42,0x3C}, // 6
+  {0x7E,0x02,0x04,0x08,0x10,0x20,0x20,0x20}, // 7
+  {0x3C,0x42,0x42,0x3C,0x42,0x42,0x42,0x3C}, // 8
+  {0x3C,0x42,0x42,0x3E,0x02,0x02,0x42,0x3C}, // 9
+  {0x66,0x66,0x66,0x66,0x66,0x66,0x66,0x66}  // 10 (X)
+};
+
+void setup() {
+  pinMode(buttonPin, INPUT_PULLUP);
+  pinMode(greenLED, OUTPUT);
+  pinMode(redLED, OUTPUT);
+
+  lc.shutdown(0, false);
+  lc.setIntensity(0, 5); 
+  lc.clearDisplay(0);
+
+  if (!rtc.begin()) {
+    while (1) { 
+      digitalWrite(redLED, HIGH); delay(100); 
+      digitalWrite(redLED, LOW); delay(100); 
+    }
+  }
+
+  drawDigit(0); 
+}
+
+void loop() {
+  bool buttonPressed = (digitalRead(buttonPin) == LOW);
+  DateTime now = rtc.now();
+
+  switch (currentState) {
+    
+    case STANDBY:
+      if (buttonPressed) {
+        drawDigit(targetValue);
+        currentState = SHOW_TARGET;
+        delay(300);
+      }
+      break;
+
+    case SHOW_TARGET:
+      if (buttonPressed) {
+        currentCounter = 0;
+        lastMoveTime = now.unixtime(); 
+        lc.clearDisplay(0);
+        drawDigit(0);
+        currentState = RUNNING;
+        delay(300);
+      }
+      break;
+
+    case RUNNING:
+      if (now.unixtime() - lastMoveTime >= 1) {
+        lastMoveTime = now.unixtime();
+        currentCounter++;
+        
+        if (currentCounter > 9) {
+          handleEnd(false);
+        } else {
+          drawDigit(currentCounter);
+        }
+      }
+
+      if (buttonPressed) {
+        handleEnd(currentCounter == targetValue);
+      }
+      break;
+  }
+}
+
+void handleEnd(bool win) {
+  if (win) {
+    digitalWrite(greenLED, HIGH);
+  } else {
+    digitalWrite(redLED, HIGH);
+  }
+  
+  for (int i = 0; i < 4; i++) {
+    lc.clearDisplay(0);
+    delay(150);
+    drawDigit(currentCounter);
+    delay(150);
+  }
+  
+  digitalWrite(greenLED, LOW);
+  digitalWrite(redLED, LOW);
+  drawDigit(0);
+  currentState = STANDBY;
+}
+
+void drawDigit(int num) {
+  if (num < 0 || num > 10) return;
+  for (int i = 0; i < 8; i++) {
+    lc.setRow(0, i, numbers[num][i]);
+  }
+}
