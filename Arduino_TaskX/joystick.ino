@@ -1,0 +1,52 @@
+const int ledXPositive = 2;
+const int ledXNegative = 3;
+const int ledYPositive = 5;
+const int ledYNegative = 4;
+
+const int joystickX = A0;
+const int joystickY = A1;
+
+const int threshold = 200;
+
+void setup() {
+  pinMode(ledXPositive, OUTPUT);
+  pinMode(ledXNegative, OUTPUT);
+  pinMode(ledYPositive, OUTPUT);
+  pinMode(ledYNegative, OUTPUT);
+
+  Serial.begin(9600);
+}
+
+void loop() {
+  int xValue = analogRead(joystickX);
+  int yValue = 1023 - analogRead(joystickY);
+
+  Serial.print("X: ");
+  Serial.print(xValue);
+  Serial.print("\tY: ");
+  Serial.println(yValue);
+
+  if (xValue > 512 + threshold) {
+    digitalWrite(ledXPositive, HIGH);
+    digitalWrite(ledXNegative, LOW);
+  } else if (xValue < 512 - threshold) {
+    digitalWrite(ledXPositive, LOW);
+    digitalWrite(ledXNegative, HIGH);
+  } else {
+    digitalWrite(ledXPositive, LOW);
+    digitalWrite(ledXNegative, LOW);
+  }
+
+  if (yValue > 512 + threshold) {
+    digitalWrite(ledYPositive, HIGH);
+    digitalWrite(ledYNegative, LOW);
+  } else if (yValue < 512 - threshold) {
+    digitalWrite(ledYPositive, LOW);
+    digitalWrite(ledYNegative, HIGH);
+  } else {
+    digitalWrite(ledYPositive, LOW);
+    digitalWrite(ledYNegative, LOW);
+  }
+
+  delay(50);
+}
